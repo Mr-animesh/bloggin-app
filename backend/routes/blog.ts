@@ -4,9 +4,10 @@ import { withAccelerate } from '@prisma/extension-accelerate'
 import {decode, sign, verify} from 'hono/jwt'
 
 interface BlogBody {
-  email: string;
-  password: string;
-  name: string;
+  title: string;
+  content: string;
+  authorId: string;
+  author: string;
 }
 export const blogRouter = new Hono<{Bindings: {
     DATABASE_URL: string,
@@ -17,35 +18,59 @@ id: string
 }}>();
 
 
+blogRouter.use('/*', async (c, next) => {
+	const header = c.req.header("authorization") || "";
+	const token = header.split(" ")[1]
+
+	try {
+		const response = await verify(token, c.env.JWT_SECRET);
+		
+		if (response.id) {
+			c.set("id", String(response.id));
+			await next()
+		} else {
+			c.status(403);
+			return c.json({ error: "unauthorized" })
+		}
+	} catch (e) {
+		c.status(403);
+		return c.json({ error: "unauthorized" })
+	}
+
+})
+
+
 // Blog
-blogRouter.post('/api/v1/blog', async (c) => {
+blogRouter.post('/', async (c) => {
+    console.log("blog post")
     const id = c.get('id');
     const prisma = new PrismaClient({
         datasourceUrl: c.env?.DATABASE_URL	,
     }).$extends(withAccelerate());
 
-    const body = await c.req.json();
+    const body: BlogBody = await c.req.json();
     const post = await prisma.post.create({
         data: {
             title: body.title,
             content: body.content,
-            authorId: id
+            authorId: id,
         }
     });
+    console.log(post);
     return c.json({
         id: post.id
     });
 })
 
 // Update Blog
-blogRouter.put('/api/v1/blog', async (c) => {
+blogRouter.put('/', async (c) => {
     const id = c.get('id');
     const prisma = new PrismaClient({
         datasourceUrl: c.env?.DATABASE_URL	,
     }).$extends(withAccelerate());
 
     const body = await c.req.json();
-    prisma.post.update({
+    const post = await prisma.post.update({
         where: {
             id: body.id,
             authorId: id
@@ -55,32 +80,63 @@ blogRouter.put('/api/v1/blog', async (c) => {
             content: body.content
         }
     });
-
-    return c.text('updated post');
+    console.log(post);
+    return c.json({
+        title: post.title,
+		content: post.content
+    });
 });
+
+// All blogs
+blogRouter.get('/bulk', async (c) => {
+    
+    const prisma = new PrismaClient({
+        datasourceUrl: c.env?.DATABASE_URL	,
+    }).$extends(withAccelerate());
+    
+    const posts = await prisma.post.findMany({
+        select: {   
+            content: true,
+            title: true,
+            id: true,
+            author:{
+                select:{
+                    name: true
+                }
+            }
+        }
+    });
+    console.log("blog put")
+    console.log(posts);
+    return c.json(posts);
+})
+
 // Show Blog
-blogRouter.get('/api/v1/blog/:id', async (c) => {
-    const id = c.req.param('id');
+blogRouter.get('/:id', async (c) => {
+    const blogid = c.req.param('id');
     const prisma = new PrismaClient({
         datasourceUrl: c.env?.DATABASE_URL	,
     }).$extends(withAccelerate());
     
     const post = await prisma.post.findUnique({
         where: {
-            id
+            id:blogid
+        },
+        select: {
+            id: true,
+            title: true,
+            content: true,
+            author: {
+                select: {
+                    name: true
+                }
+            }
         }
     });
-
     return c.json(post);
 })
-// All blogs
-blogRouter.get('/api/v1/blog/bulk', async (c) => {
-    const prisma = new PrismaClient({
-        datasourceUrl: c.env?.DATABASE_URL	,
-    }).$extends(withAccelerate());
-    
-    const posts = await prisma.post.findMany({});
 
-    return c.json(posts);
-})
+
+
+
 

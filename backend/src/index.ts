@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import {userRouter} from '../routes/user'
 import {blogRouter} from '../routes/blog'
+import {cors} from 'hono/cors'
 import {middleware} from '../controllers/middlerware'
 import { PrismaClient } from '@prisma/client/edge'
 import { withAccelerate } from '@prisma/extension-accelerate'
@@ -21,12 +22,11 @@ export const app = new Hono<{  //to get rid of env variable type which are req i
     id: string
   }
 }>();
-
+app.use('/*', cors())
 
 app.route('/api/v1/', userRouter)
 
 // Middleware
-app.use('/api/v1/blog/*', middleware)
 
 
 app.route('/api/v1/blog', blogRouter)

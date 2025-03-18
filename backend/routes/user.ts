@@ -1,7 +1,7 @@
-import { Hono } from 'hono'
-import { PrismaClient } from '@prisma/client/edge'
-import { withAccelerate } from '@prisma/extension-accelerate'
-import {decode, sign, verify} from 'hono/jwt'
+import { Hono } from 'hono' // used for severless be in node.js instead of express
+import { PrismaClient } from '@prisma/client/edge' //used for database queries
+import { withAccelerate } from '@prisma/extension-accelerate' // used for connection pooling in serverless env
+import {sign} from 'hono/jwt'
 
 interface SignupRequestBody {
   email: string;
@@ -63,5 +63,5 @@ userRouter.post('/signin', async (c) => {
     }
 
     const jwt = await sign({ id: user.id }, c.env.JWT_SECRET);
-    return c.json({ jwt });  
+    return c.json({ jwt });  //this dont even matter for anything just for letting know that we are lgged in frontend will be used for storing this in localstorage
 })

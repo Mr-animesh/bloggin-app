@@ -1,21 +1,21 @@
 import { Hono } from 'hono'
-import { PrismaClient } from '@prisma/client/edge'
+import { PrismaClient } from '@prisma/client/edge'//server to backend call
 import { withAccelerate } from '@prisma/extension-accelerate'
-import {decode, sign, verify} from 'hono/jwt'
+import {verify} from 'hono/jwt'
 
 interface BlogBody {
-  title: string;
-  content: string;
-  authorId: string;
-  author: string;
+    title: string;
+    content: string;
+    authorId: string;
+    author: string;
 }
 export const blogRouter = new Hono<{Bindings: {
     DATABASE_URL: string,
-JWT_SECRET: string
-},
-Variables: {
-id: string
-}}>();
+    JWT_SECRET: string
+    },
+    Variables: {
+        id: string  
+    }}>();
 
 
 blogRouter.use('/*', async (c, next) => {
@@ -29,11 +29,11 @@ blogRouter.use('/*', async (c, next) => {
 			c.set("id", String(response.id));
 			await next()
 		} else {
-			c.status(403);
+			c.status(411);
 			return c.json({ error: "unauthorized" })
 		}
 	} catch (e) {
-		c.status(403);
+		c.status(406);
 		return c.json({ error: "unauthorized" })
 	}
 
@@ -42,7 +42,6 @@ blogRouter.use('/*', async (c, next) => {
 
 // Blog
 blogRouter.post('/', async (c) => {
-    console.log("blog post")
     const id = c.get('id');
     const prisma = new PrismaClient({
         datasourceUrl: c.env?.DATABASE_URL	,
@@ -56,7 +55,6 @@ blogRouter.post('/', async (c) => {
             authorId: id,
         }
     });
-    console.log(post);
     return c.json({
         id: post.id
     });
@@ -80,7 +78,6 @@ blogRouter.put('/', async (c) => {
             content: body.content
         }
     });
-    console.log(post);
     return c.json({
         title: post.title,
 		content: post.content
@@ -106,8 +103,6 @@ blogRouter.get('/bulk', async (c) => {
             }
         }
     });
-    console.log("blog put")
-    console.log(posts);
     return c.json(posts);
 })
 
@@ -128,7 +123,8 @@ blogRouter.get('/:id', async (c) => {
             content: true,
             author: {
                 select: {
-                    name: true
+                    name: true,
+                    id: true
                 }
             }
         }
